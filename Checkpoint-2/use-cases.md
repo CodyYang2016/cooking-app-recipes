@@ -1,4 +1,4 @@
-# Categorized Use Cases – Pantry & Recipe Mobile App
+# Categorized Use Cases
 
 ## 1. Account Management  
 1. **Create Account.**  
