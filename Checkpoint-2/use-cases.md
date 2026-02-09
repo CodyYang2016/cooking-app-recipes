@@ -36,7 +36,7 @@
 
 ---
 
-## 3. Recipe Search & Discovery  
+## 3. Recipe Search  
 1. **Search Recipes by Pantry Ingredients.**  
    The user taps *Find Recipes*. The app sends the user’s pantry items to the recipe API and displays matching recipes.
 
@@ -63,7 +63,7 @@
 
 ---
 
-## 5. Bookmarking & Favorites  
+## 5. Bookmarking Recipes 
 1. **Bookmark Recipe.**  
    The user taps the bookmark icon to save a recipe.
 
