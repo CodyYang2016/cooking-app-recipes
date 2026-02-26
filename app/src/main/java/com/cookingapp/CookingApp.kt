@@ -1,7 +1,6 @@
-package com.example.cookingapp
+package com.cookingapp
 
 import android.app.Application
-import com.example.cookingapp.di.AppContainer
 
 class CookingApp : Application() {
     lateinit var container: AppContainer
