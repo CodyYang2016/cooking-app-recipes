@@ -1,11 +1,12 @@
 package com.cookingapp.model
 
-/**
- * Represents a single item in the user's pantry.
- * Intentionally simple for this checkpoint — will become a Room entity later.
- */
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+@Entity(tableName = "pantry_items")
 data class PantryItem(
-    val id: Int,
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
     val name: String,
     val quantity: Double,
     val unit: String

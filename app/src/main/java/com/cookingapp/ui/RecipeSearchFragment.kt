@@ -1,60 +1,39 @@
 package com.cookingapp.ui
 
-import android.content.Context
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.widget.addTextChangedListener
+import android.widget.Button
+import android.widget.EditText
+import android.widget.TextView
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.cookingapp.R
 import com.cookingapp.databinding.FragmentRecipeSearchBinding
-import com.cookingapp.databinding.ListItemRecipeBinding
 import com.cookingapp.model.Recipe
+import com.cookingapp.viewmodel.RecipeViewModel
 
-/**
- * RecipeSearchFragment — lets the user search through available recipes.
- *
- * This is a real screen in the app's flow: in a later checkpoint this will
- * query Room and TheMealDB API. For now it filters a hardcoded list locally.
- *
- * All 8 Fragment lifecycle methods are logged as required by the checkpoint.
- */
 class RecipeSearchFragment : Fragment() {
 
     private var _binding: FragmentRecipeSearchBinding? = null
     private val binding get() = _binding!!
 
+    private lateinit var viewModel: RecipeViewModel
+    private lateinit var adapter: RecipeAdapter
+
     companion object {
         private const val TAG = "LIFECYCLE_RECIPE"
-
-        /** Hardcoded recipes — stand-ins for eventual Room + API data. */
-        val ALL_RECIPES = listOf(
-            Recipe(1,  "Spaghetti Carbonara",        "Pasta",   4),
-            Recipe(2,  "Chicken Tikka Masala",       "Curry",   4),
-            Recipe(3,  "Beef Tacos",                 "Mexican", 2),
-            Recipe(4,  "Garlic Butter Shrimp",       "Seafood", 2),
-            Recipe(5,  "Vegetable Stir Fry",         "Asian",   3),
-            Recipe(6,  "Classic Caesar Salad",       "Salad",   2),
-            Recipe(7,  "Mushroom Risotto",           "Italian", 4),
-            Recipe(8,  "Honey Garlic Salmon",        "Seafood", 2),
-            Recipe(9,  "Black Bean Soup",            "Soup",    6),
-            Recipe(10, "Margherita Pizza",           "Italian", 4)
-        )
-    }
-
-    // ─── Lifecycle Methods ────────────────────────────────────────────────────
-
-    override fun onAttach(context: Context) {
-        super.onAttach(context)
-        Log.d(TAG, "onAttach() called")
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.d(TAG, "onCreate() called")
+
+        viewModel = ViewModelProvider(this)[RecipeViewModel::class.java]
     }
 
     override fun onCreateView(
@@ -69,30 +48,52 @@ class RecipeSearchFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        Log.d(TAG, "onViewCreated() called — setting up RecyclerView")
 
-        // ── Good breakpoint location for the debugger demo ──
-        val recipes = ALL_RECIPES       // <-- set breakpoint here, inspect `recipes`
-        Log.d(TAG, "onViewCreated() — loaded ${recipes.size} recipes")
+        setupRecyclerView()
+        setupAddButton()
+        observeData()
+    }
 
-        val adapter = RecipeAdapter(recipes.toMutableList())
-        binding.recyclerView.layoutManager = LinearLayoutManager(requireContext())
-        binding.recyclerView.adapter = adapter
+    private fun setupRecyclerView() {
+        adapter = RecipeAdapter(
+            onItemClick = { recipe -> toggleFavorite(recipe) },
+            onDeleteClick = { recipe -> viewModel.deleteRecipe(recipe) }
+        )
 
-        // Live-filter the list as the user types
-        binding.searchBar.addTextChangedListener { text ->
-            val query = text.toString().trim().lowercase()
-            Log.d(TAG, "Search query: \"$query\"")
-
-            val filtered = if (query.isEmpty()) {
-                ALL_RECIPES
-            } else {
-                ALL_RECIPES.filter {
-                    it.title.lowercase().contains(query) ||
-                    it.category.lowercase().contains(query)
-                }
-            }
-            adapter.updateData(filtered)
+        binding.recyclerView.apply {
+            layoutManager = LinearLayoutManager(requireContext())
+            adapter = this@RecipeSearchFragment.adapter
         }
+    }
+
+    private fun setupAddButton() {
+        binding.buttonAddRecipe.setOnClickListener {
+            val title = binding.editTextTitle.text.toString()
+            val category = binding.editTextCategory.text.toString()
+            val servingsStr = binding.editTextServings.text.toString()
+
+            if (title.isNotBlank() && category.isNotBlank()) {
+                val servings = servingsStr.toIntOrNull() ?: 2
+                viewModel.insertRecipe(title, category, servings)
+
+                // Clear input fields
+                binding.editTextTitle.text.clear()
+                binding.editTextCategory.text.clear()
+                binding.editTextServings.text.clear()
+            }
+        }
+    }
+
+    private fun observeData() {
+        viewModel.allRecipes.observe(viewLifecycleOwner) { recipes ->
+            Log.d(TAG, "Data updated — ${recipes.size} recipes in database")
+            adapter.submitList(recipes)
+        }
+    }
+
+    private fun toggleFavorite(recipe: Recipe) {
+        viewModel.toggleFavorite(recipe)
     }
 
     override fun onStart() {
@@ -126,44 +127,48 @@ class RecipeSearchFragment : Fragment() {
         Log.d(TAG, "onDestroy() called")
     }
 
-    override fun onDetach() {
-        super.onDetach()
-        Log.d(TAG, "onDetach() called")
-    }
+    // Inner adapter class
+    class RecipeAdapter(
+        private val onItemClick: (Recipe) -> Unit,
+        private val onDeleteClick: (Recipe) -> Unit
+    ) : RecyclerView.Adapter<RecipeAdapter.RecipeViewHolder>() {
 
-    // ─── RecyclerView Adapter ─────────────────────────────────────────────────
+        private var recipes = listOf<Recipe>()
 
-    private class RecipeAdapter(
-        private val items: MutableList<Recipe>
-    ) : RecyclerView.Adapter<RecipeAdapter.ViewHolder>() {
-
-        inner class ViewHolder(
-            private val binding: ListItemRecipeBinding
-        ) : RecyclerView.ViewHolder(binding.root) {
-
-            fun bind(recipe: Recipe) {
-                binding.textTitle.text    = recipe.title
-                binding.textCategory.text = recipe.category
-                binding.textServings.text = "Serves ${recipe.servings}"
-            }
-        }
-
-        fun updateData(newItems: List<Recipe>) {
-            items.clear()
-            items.addAll(newItems)
+        fun submitList(newRecipes: List<Recipe>) {
+            recipes = newRecipes
             notifyDataSetChanged()
         }
 
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-            val binding = ListItemRecipeBinding.inflate(
-                LayoutInflater.from(parent.context), parent, false
-            )
-            return ViewHolder(binding)
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecipeViewHolder {
+            val view = LayoutInflater.from(parent.context)
+                .inflate(R.layout.list_item_recipe, parent, false)
+            return RecipeViewHolder(view)
         }
 
-        override fun onBindViewHolder(holder: ViewHolder, position: Int) =
-            holder.bind(items[position])
+        override fun onBindViewHolder(holder: RecipeViewHolder, position: Int) {
+            holder.bind(recipes[position])
+        }
 
-        override fun getItemCount() = items.size
+        override fun getItemCount() = recipes.size
+
+        inner class RecipeViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+            private val tvTitle = itemView.findViewById<TextView>(R.id.tvRecipeTitle)
+            private val tvCategory = itemView.findViewById<TextView>(R.id.tvRecipeCategory)
+            private val tvServings = itemView.findViewById<TextView>(R.id.tvServings)
+            private val btnFavorite = itemView.findViewById<Button>(R.id.btnFavorite)
+            private val btnDelete = itemView.findViewById<Button>(R.id.btnDelete)
+
+            fun bind(recipe: Recipe) {
+                tvTitle.text = recipe.title
+                tvCategory.text = recipe.category
+                tvServings.text = "Serves: ${recipe.servings}"
+                btnFavorite.text = if (recipe.isFavorite) "★" else "☆"
+
+                itemView.setOnClickListener { onItemClick(recipe) }
+                btnDelete.setOnClickListener { onDeleteClick(recipe) }
+                btnFavorite.setOnClickListener { onItemClick(recipe) }
+            }
+        }
     }
 }

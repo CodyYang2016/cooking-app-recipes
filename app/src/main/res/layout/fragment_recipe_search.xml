@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:padding="16dp">
 
     <TextView
         android:layout_width="match_parent"
@@ -11,29 +11,50 @@
         android:text="Find Recipes"
         android:textSize="24sp"
         android:textStyle="bold"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:paddingTop="16dp"
-        android:paddingBottom="8dp" />
+        android:padding="16dp"/>
 
-    <EditText
-        android:id="@+id/search_bar"
+    <!-- Add Recipe Form -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Search by name or category..."
-        android:inputType="text"
-        android:imeOptions="actionSearch"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:paddingBottom="8dp"
-        android:background="@android:drawable/edit_text" />
+        android:orientation="vertical"
+        android:padding="8dp">
+
+        <EditText
+            android:id="@+id/editTextTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Recipe title"
+            android:padding="8dp"
+            android:layout_marginBottom="4dp"/>
+
+        <EditText
+            android:id="@+id/editTextCategory"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Category (Breakfast/Lunch/Dinner)"
+            android:padding="8dp"
+            android:layout_marginBottom="4dp"/>
+
+        <EditText
+            android:id="@+id/editTextServings"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Servings"
+            android:inputType="number"
+            android:padding="8dp"
+            android:layout_marginBottom="4dp"/>
+
+        <Button
+            android:id="@+id/buttonAddRecipe"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Add Recipe"/>
+    </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recycler_view"
+        android:id="@+id/recyclerView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:clipToPadding="false"
-        android:paddingTop="8dp"
-        android:paddingBottom="8dp" />
-
+        android:padding="8dp"/>
 </LinearLayout>

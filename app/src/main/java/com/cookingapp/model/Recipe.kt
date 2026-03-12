@@ -1,12 +1,14 @@
 package com.cookingapp.model
 
-/**
- * Represents a recipe result from search.
- * Intentionally simple for this checkpoint — will become a Room entity later.
- */
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+@Entity(tableName = "recipes")
 data class Recipe(
-    val id: Int,
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
     val title: String,
     val category: String,
-    val servings: Int
+    val servings: Int,
+    val isFavorite: Boolean = false
 )
