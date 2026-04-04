@@ -1,21 +1,33 @@
 package com.cookingapp.ui
 
+import android.Manifest
+import android.app.Activity
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
+import android.provider.MediaStore
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
-import android.widget.EditText
-import android.widget.TextView
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.cookingapp.R
 import com.cookingapp.databinding.FragmentRecipeSearchBinding
-import com.cookingapp.model.Recipe
+import com.cookingapp.utils.CameraHelper
 import com.cookingapp.viewmodel.RecipeViewModel
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class RecipeSearchFragment : Fragment() {
 
@@ -23,152 +35,130 @@ class RecipeSearchFragment : Fragment() {
     private val binding get() = _binding!!
 
     private lateinit var viewModel: RecipeViewModel
-    private lateinit var adapter: RecipeAdapter
+    private lateinit var cameraHelper: CameraHelper
+    private lateinit var recipeAdapter: RecipeAdapter
+    private var currentPhotoUri: Uri? = null
+    private var currentPhotoPath: String? = null
 
-    companion object {
-        private const val TAG = "LIFECYCLE_RECIPE"
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) launchCamera()
+        else Toast.makeText(requireContext(), "Camera permission required", Toast.LENGTH_LONG).show()
+    }
+
+    private val cameraLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            currentPhotoUri?.let { uri -> handleCapturedPhoto(uri) }
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Log.d(TAG, "onCreate() called")
-
         viewModel = ViewModelProvider(this)[RecipeViewModel::class.java]
+        cameraHelper = CameraHelper(requireContext())
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        Log.d(TAG, "onCreateView() called")
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentRecipeSearchBinding.inflate(inflater, container, false)
         return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        Log.d(TAG, "onViewCreated() called — setting up RecyclerView")
-
         setupRecyclerView()
-        setupAddButton()
+        setupSearchButtons()
+        setupCameraButton()
         observeData()
     }
 
     private fun setupRecyclerView() {
-        adapter = RecipeAdapter(
-            onItemClick = { recipe -> toggleFavorite(recipe) },
-            onDeleteClick = { recipe -> viewModel.deleteRecipe(recipe) }
-        )
+        recipeAdapter = RecipeAdapter { recipe ->
+            // Navigate to detail fragment on click
+            val fragment = RecipeDetailFragment.newInstance(recipe)
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.fragment_container, fragment)
+                .addToBackStack(null)
+                .commit()
+        }
+        binding.recipeRecyclerView.layoutManager = LinearLayoutManager(requireContext())
+        binding.recipeRecyclerView.adapter = recipeAdapter
+    }
 
-        binding.recyclerView.apply {
-            layoutManager = LinearLayoutManager(requireContext())
-            adapter = this@RecipeSearchFragment.adapter
+    private fun setupSearchButtons() {
+        binding.searchButton.setOnClickListener {
+            val query = binding.searchInput.text.toString()
+            if (query.isNotBlank()) viewModel.searchRecipes(query)
+        }
+
+        binding.pantrySearchButton.setOnClickListener {
+            viewModel.searchByPantryIngredients()
         }
     }
 
-    private fun setupAddButton() {
-        binding.buttonAddRecipe.setOnClickListener {
-            val title = binding.editTextTitle.text.toString()
-            val category = binding.editTextCategory.text.toString()
-            val servingsStr = binding.editTextServings.text.toString()
-
-            if (title.isNotBlank() && category.isNotBlank()) {
-                val servings = servingsStr.toIntOrNull() ?: 2
-                viewModel.insertRecipe(title, category, servings)
-
-                // Clear input fields
-                binding.editTextTitle.text.clear()
-                binding.editTextCategory.text.clear()
-                binding.editTextServings.text.clear()
-            }
+    private fun setupCameraButton() {
+        binding.root.findViewById<Button>(R.id.cameraButton)?.setOnClickListener {
+            checkCameraAndLaunch()
         }
     }
 
     private fun observeData() {
-        viewModel.allRecipes.observe(viewLifecycleOwner) { recipes ->
-            Log.d(TAG, "Data updated — ${recipes.size} recipes in database")
-            adapter.submitList(recipes)
+        viewModel.searchResults.observe(viewLifecycleOwner) { apiRecipes ->
+            recipeAdapter.submitList(apiRecipes)
+        }
+
+        viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
+            binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
         }
     }
 
-    private fun toggleFavorite(recipe: Recipe) {
-        viewModel.toggleFavorite(recipe)
+    private fun checkCameraAndLaunch() {
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA)
+            == PackageManager.PERMISSION_GRANTED) {
+            launchCamera()
+        } else {
+            requestPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
     }
 
-    override fun onStart() {
-        super.onStart()
-        Log.d(TAG, "onStart() called")
+    private fun launchCamera() {
+        val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+        if (intent.resolveActivity(requireContext().packageManager) != null) {
+            val photoFile = createImageFile()
+            if (photoFile != null) {
+                currentPhotoUri = FileProvider.getUriForFile(
+                    requireContext(),
+                    "${requireContext().packageName}.fileprovider",
+                    photoFile
+                )
+                intent.putExtra(MediaStore.EXTRA_OUTPUT, currentPhotoUri)
+                cameraLauncher.launch(intent)
+            }
+        } else {
+            Toast.makeText(requireContext(), "No camera app found", Toast.LENGTH_SHORT).show()
+        }
     }
 
-    override fun onResume() {
-        super.onResume()
-        Log.d(TAG, "onResume() called")
+    private fun createImageFile(): File? {
+        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+        val storageDir = requireContext().getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+        return File.createTempFile("JPEG_${timeStamp}_", ".jpg", storageDir).apply {
+            currentPhotoPath = absolutePath
+        }
     }
 
-    override fun onPause() {
-        super.onPause()
-        Log.d(TAG, "onPause() called")
-    }
-
-    override fun onStop() {
-        super.onStop()
-        Log.d(TAG, "onStop() called")
+    private fun handleCapturedPhoto(uri: Uri) {
+        currentPhotoPath?.let { path ->
+            val compressedPath = cameraHelper.compressAndSaveImage(path, 70)
+            Log.d("CAMERA", "Photo saved at: $compressedPath")
+        }
+        Toast.makeText(requireContext(), "Photo saved!", Toast.LENGTH_SHORT).show()
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
-        Log.d(TAG, "onDestroyView() called")
         _binding = null
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        Log.d(TAG, "onDestroy() called")
-    }
-
-    // Inner adapter class
-    class RecipeAdapter(
-        private val onItemClick: (Recipe) -> Unit,
-        private val onDeleteClick: (Recipe) -> Unit
-    ) : RecyclerView.Adapter<RecipeAdapter.RecipeViewHolder>() {
-
-        private var recipes = listOf<Recipe>()
-
-        fun submitList(newRecipes: List<Recipe>) {
-            recipes = newRecipes
-            notifyDataSetChanged()
-        }
-
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecipeViewHolder {
-            val view = LayoutInflater.from(parent.context)
-                .inflate(R.layout.list_item_recipe, parent, false)
-            return RecipeViewHolder(view)
-        }
-
-        override fun onBindViewHolder(holder: RecipeViewHolder, position: Int) {
-            holder.bind(recipes[position])
-        }
-
-        override fun getItemCount() = recipes.size
-
-        inner class RecipeViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-            private val tvTitle = itemView.findViewById<TextView>(R.id.tvRecipeTitle)
-            private val tvCategory = itemView.findViewById<TextView>(R.id.tvRecipeCategory)
-            private val tvServings = itemView.findViewById<TextView>(R.id.tvServings)
-            private val btnFavorite = itemView.findViewById<Button>(R.id.btnFavorite)
-            private val btnDelete = itemView.findViewById<Button>(R.id.btnDelete)
-
-            fun bind(recipe: Recipe) {
-                tvTitle.text = recipe.title
-                tvCategory.text = recipe.category
-                tvServings.text = "Serves: ${recipe.servings}"
-                btnFavorite.text = if (recipe.isFavorite) "★" else "☆"
-
-                itemView.setOnClickListener { onItemClick(recipe) }
-                btnDelete.setOnClickListener { onDeleteClick(recipe) }
-                btnFavorite.setOnClickListener { onItemClick(recipe) }
-            }
-        }
     }
 }

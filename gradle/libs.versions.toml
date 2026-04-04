@@ -3,6 +3,8 @@ agp = "8.5.2"
 kotlin = "1.9.24"
 ksp = "1.9.24-1.0.20"
 room = "2.6.1"
+kotlinx-serialization = "1.6.3"
+
 
 [libraries]
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }

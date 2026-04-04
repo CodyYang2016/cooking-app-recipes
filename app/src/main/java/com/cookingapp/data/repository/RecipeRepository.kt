@@ -4,61 +4,75 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.asLiveData
 import com.cookingapp.data.AppDatabase
 import com.cookingapp.model.Recipe
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import com.cookingapp.network.ApiRecipe
+import com.cookingapp.network.NetworkClient
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import com.cookingapp.network.RecipeDetailsResponse
+import android.util.Log
 
 class RecipeRepository(private val database: AppDatabase) {
 
-    val allRecipes: Flow<List<Recipe>> = database.recipeDao().getAllRecipes()
+    private val api = NetworkClient.spoonacularApi
 
-    val allRecipesLiveData: LiveData<List<Recipe>> =
-        allRecipes.asLiveData()
+    val allRecipes: Flow<List<Recipe>> = database.recipeDao().getAllRecipes()
+    val allRecipesLiveData: LiveData<List<Recipe>> = allRecipes.asLiveData()
 
     suspend fun insert(recipe: Recipe) {
         database.recipeDao().insert(recipe)
-    }
-
-    suspend fun update(recipe: Recipe) {
-        database.recipeDao().update(recipe)
     }
 
     suspend fun delete(recipe: Recipe) {
         database.recipeDao().delete(recipe)
     }
 
-    suspend fun getRecipesByCategory(category: String): List<Recipe>? {
-        val flow = database.recipeDao().getRecipesByCategory(category)
-        // This is simplified - in practice you'd observe the Flow
-        return null
-    }
-
-    fun insertRecipe(recipe: Recipe, onComplete: () -> Unit = {}) {
-        CoroutineScope(Dispatchers.IO).launch {
-            insert(recipe)
-            withContext(Dispatchers.Main) {
-                onComplete()
-            }
-        }
+    suspend fun update(recipe: Recipe) {
+        database.recipeDao().update(recipe)
     }
 
     suspend fun initializeSampleData() {
-        val currentItems = database.recipeDao().getAllRecipes()
-        if (currentItems is kotlinx.coroutines.flow.Flow &&
-            currentItems is java.util.Collection<*> &&
-            currentItems.isEmpty()) {
+        // Add sample recipes if needed for testing
+    }
 
-            val sampleRecipes = listOf(
-                Recipe(title = "Scrambled Eggs", category = "Breakfast", servings = 2),
-                Recipe(title = "Grilled Cheese", category = "Lunch", servings = 1),
-                Recipe(title = "Fried Rice", category = "Dinner", servings = 4),
-                Recipe(title = "Pasta", category = "Dinner", servings = 2),
-                Recipe(title = "Salad", category = "Lunch", servings = 2)
-            )
+    suspend fun searchRecipesOnline(query: String): List<ApiRecipe> {
+        return try {
+            val response = api.searchRecipes(query)
+            Log.d("API", "Results: ${response.results.size}")
+            response.results
+        } catch (e: Exception) {
+            Log.e("API", "Search failed: ${e.message}")
+            e.printStackTrace()
+            emptyList()
+        }
+    }
 
-            sampleRecipes.forEach { insert(it) }
+    // No parameter needed — fetches from pantry internally
+    suspend fun searchRecipesByIngredients(): List<ApiRecipe> {
+        return try {
+            val pantryItems = database.pantryItemDao().getAllItemsOnce()
+            val ingredientString = pantryItems.joinToString(",") { it.name }
+            val results = api.searchByIngredients(ingredientString)
+            results.map { result ->
+                ApiRecipe(
+                    id = result.id,
+                    title = result.title,
+                    imageUrl = result.image,
+                    imageType = null,
+                    readyInMinutes = null,
+                    servings = null,
+                    sourceUrl = null
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+    suspend fun getRecipeDetails(id: Int): RecipeDetailsResponse? {
+        return try {
+            api.getRecipeDetails(id)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
         }
     }
 }

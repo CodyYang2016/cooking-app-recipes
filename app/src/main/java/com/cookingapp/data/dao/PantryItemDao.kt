@@ -27,4 +27,10 @@ interface PantryItemDao {
 
     @Query("DELETE FROM pantry_items")
     suspend fun deleteAll()
+
+    @Query("SELECT COUNT(*) FROM pantry_items")
+    suspend fun getItemCount(): Int
+
+    @Query("SELECT * FROM pantry_items")
+    suspend fun getAllItemsOnce(): List<PantryItem>
 }
