@@ -12,14 +12,16 @@
         android:text="My Pantry"
         android:textSize="24sp"
         android:textStyle="bold"
-        android:padding="16dp"/>
+        android:padding="16dp"
+        android:contentDescription="My Pantry screen heading"/>
 
     <!-- Add Item Form -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="8dp">
+        android:padding="8dp"
+        android:contentDescription="Add new pantry item form">
 
         <EditText
             android:id="@+id/editTextName"
@@ -27,7 +29,8 @@
             android:layout_height="wrap_content"
             android:layout_weight="2"
             android:hint="Item name"
-            android:padding="8dp"/>
+            android:padding="8dp"
+            android:contentDescription="Enter item name"/>
 
         <EditText
             android:id="@+id/editTextQuantity"
@@ -36,7 +39,8 @@
             android:layout_weight="1"
             android:hint="Qty"
             android:inputType="numberDecimal"
-            android:padding="8dp"/>
+            android:padding="8dp"
+            android:contentDescription="Enter item quantity"/>
 
         <EditText
             android:id="@+id/editTextUnit"
@@ -44,18 +48,51 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:hint="Unit"
-            android:padding="8dp"/>
+            android:padding="8dp"
+            android:contentDescription="Enter unit of measurement"/>
 
         <Button
             android:id="@+id/buttonAdd"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Add"/>
+            android:text="Add"
+            android:contentDescription="Add item to pantry"/>
+    </LinearLayout>
+
+    <!-- Button Row: Seed + Clear All -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="8dp">
+
+        <Button
+            android:id="@+id/seedButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Seed 50 Items"
+            android:backgroundTint="@color/purple_500"
+            android:layout_marginEnd="4dp"
+            android:contentDescription="Seed 50 test items into pantry"/>
+
+        <Button
+            android:id="@+id/clearAllButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Clear All"
+            android:backgroundTint="@color/red"
+            android:layout_marginStart="4dp"
+            android:contentDescription="Clear all pantry items"/>
+
     </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:padding="8dp"/>
+        android:padding="8dp"
+        android:contentDescription="List of pantry items"/>
+
 </LinearLayout>

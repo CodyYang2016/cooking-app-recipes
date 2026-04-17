@@ -22,15 +22,12 @@ interface PantryItemDao {
     @Query("SELECT * FROM pantry_items ORDER BY name ASC")
     fun getAllItems(): Flow<List<PantryItem>>
 
+    @Query("SELECT * FROM pantry_items")
+    suspend fun getAllItemsOnce(): List<PantryItem>
+
     @Query("SELECT * FROM pantry_items WHERE id = :id")
     suspend fun getItemById(id: Long): PantryItem?
 
     @Query("DELETE FROM pantry_items")
     suspend fun deleteAll()
-
-    @Query("SELECT COUNT(*) FROM pantry_items")
-    suspend fun getItemCount(): Int
-
-    @Query("SELECT * FROM pantry_items")
-    suspend fun getAllItemsOnce(): List<PantryItem>
 }

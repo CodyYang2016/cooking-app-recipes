@@ -2,10 +2,12 @@ package com.cookingapp.data.repository
 
 import com.cookingapp.data.AppDatabase
 import com.cookingapp.data.dao.PantryItemDao
+import com.cookingapp.data.dao.RecipeDao
 import com.cookingapp.model.PantryItem
 import com.cookingapp.network.IngredientSearchResponse
 import com.cookingapp.network.SpoonacularApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
 import org.junit.Before
@@ -21,6 +23,9 @@ class RecipeRepositoryTest {
     private lateinit var database: AppDatabase
 
     @Mock
+    private lateinit var recipeDao: RecipeDao
+
+    @Mock
     private lateinit var pantryItemDao: PantryItemDao
 
     @Mock
@@ -31,7 +36,16 @@ class RecipeRepositoryTest {
     @Before
     fun setup() {
         MockitoAnnotations.openMocks(this)
+
+        // Mock both DAOs - THIS IS THE KEY FIX
+        `when`(database.recipeDao()).thenReturn(recipeDao)
         `when`(database.pantryItemDao()).thenReturn(pantryItemDao)
+
+        // Mock the getAllRecipes() call that happens in constructor
+        `when`(recipeDao.getAllRecipes()).thenReturn(flowOf(emptyList()))
+        `when`(pantryItemDao.getAllItems()).thenReturn(flowOf(emptyList())) // ← add this
+
+        // Create repository with mocked database
         repository = RecipeRepository(database)
 
         // Replace the api with our mock using reflection
@@ -48,7 +62,8 @@ class RecipeRepositoryTest {
             PantryItem(name = "rice", quantity = 1.0, unit = "cup"),
             PantryItem(name = "salt", quantity = 5.0, unit = "grams")
         )
-        `when`(pantryItemDao.getAllItemsOnce()).thenReturn(pantryItems)
+        `when`(pantryItemDao.getAllItems()).thenReturn(flowOf(pantryItems))
+
 
         // Arrange: Mock API response
         val apiResponse = listOf(
@@ -67,7 +82,7 @@ class RecipeRepositoryTest {
                 usedIngredientCount = 2
             )
         )
-        `when`(api.searchByIngredients("chicken,rice,salt", 20, true)).thenReturn(apiResponse)
+        `when`(api.searchByIngredients("chicken,rice,salt")).thenReturn(apiResponse)
 
         // Act
         val result = repository.searchRecipesByIngredients()
@@ -86,7 +101,7 @@ class RecipeRepositoryTest {
         assertEquals("grilled_chicken.jpg", result[1].imageUrl)
 
         // Assert: Verify API was called with correct ingredient string
-        verify(api).searchByIngredients("chicken,rice,salt", 20, true)
+        verify(api).searchByIngredients("chicken,rice,salt")
     }
 
     @Test
@@ -96,12 +111,11 @@ class RecipeRepositoryTest {
             PantryItem(name = "tomato", quantity = 1.0, unit = "piece"),
             PantryItem(name = "cheese", quantity = 100.0, unit = "grams")
         )
-        `when`(pantryItemDao.getAllItemsOnce()).thenReturn(pantryItems)
+        `when`(pantryItemDao.getAllItems()).thenReturn(flowOf(pantryItems))
 
         // Arrange: Mock API to throw exception
-        `when`(api.searchByIngredients("tomato,cheese", 20, true))
+        `when`(api.searchByIngredients("tomato,cheese"))
             .thenThrow(RuntimeException("Network error"))
-
         // Act
         val result = repository.searchRecipesByIngredients()
 
@@ -109,6 +123,6 @@ class RecipeRepositoryTest {
         assertTrue(result.isEmpty())
 
         // Assert: Verify API was attempted
-        verify(api).searchByIngredients("tomato,cheese", 20, true)
+        verify(api).searchByIngredients("tomato,cheese")
     }
 }

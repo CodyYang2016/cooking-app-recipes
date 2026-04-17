@@ -14,10 +14,11 @@ class PantryViewModel(application: Application) : AndroidViewModel(application) 
     private val repository: PantryRepository =
         (application as CookingApplication).pantryRepository
 
-    // LiveData for UI to observe
+    val pantryRepository: PantryRepository
+        get() = repository
+
     val allPantryItems: LiveData<List<PantryItem>> = repository.allPantryItemsLiveData
 
-    // CRUD Operations
     fun insertItem(name: String, quantity: Double, unit: String) {
         viewModelScope.launch {
             val item = PantryItem(name = name, quantity = quantity, unit = unit)
@@ -37,6 +38,12 @@ class PantryViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun clearAllItems() {
+        viewModelScope.launch {
+            repository.deleteAll()
+        }
+    }
+
     fun updateQuantity(item: PantryItem, newQuantity: Double) {
         viewModelScope.launch {
             val updatedItem = item.copy(quantity = newQuantity)
@@ -44,17 +51,9 @@ class PantryViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    // For demo/testing - add sample data
     fun addSampleData() {
         viewModelScope.launch {
             repository.initializeSampleData()
-        }
-    }
-
-    // Clear all data (for testing)
-    fun clearAll() {
-        viewModelScope.launch {
-            // You'd need a deleteAll method in repository
         }
     }
 }
