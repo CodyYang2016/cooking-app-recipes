@@ -2,10 +2,12 @@ package com.cookingapp.data.repository
 
 import com.cookingapp.data.AppDatabase
 import com.cookingapp.data.dao.PantryItemDao
+import com.cookingapp.data.dao.RecipeDao
 import com.cookingapp.model.PantryItem
 import com.cookingapp.network.IngredientSearchResponse
 import com.cookingapp.network.SpoonacularApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
 import org.junit.Before
@@ -21,6 +23,9 @@ class RecipeRepositoryTest {
     private lateinit var database: AppDatabase
 
     @Mock
+    private lateinit var recipeDao: RecipeDao
+
+    @Mock
     private lateinit var pantryItemDao: PantryItemDao
 
     @Mock
@@ -31,7 +36,15 @@ class RecipeRepositoryTest {
     @Before
     fun setup() {
         MockitoAnnotations.openMocks(this)
+
+        // Mock both DAOs - THIS IS THE KEY FIX
+        `when`(database.recipeDao()).thenReturn(recipeDao)
         `when`(database.pantryItemDao()).thenReturn(pantryItemDao)
+
+        // Mock the getAllRecipes() call that happens in constructor
+        `when`(recipeDao.getAllRecipes()).thenReturn(flowOf(emptyList()))
+
+        // Create repository with mocked database
         repository = RecipeRepository(database)
 
         // Replace the api with our mock using reflection
