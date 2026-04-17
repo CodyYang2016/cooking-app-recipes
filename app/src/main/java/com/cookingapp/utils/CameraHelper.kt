@@ -51,7 +51,6 @@ class CameraHelper(private val context: Context) {
 
     fun launchCamera(activity: Activity, onPhotoCaptured: (Uri, String) -> Unit) {
         this.onPhotoCapturedListener = onPhotoCaptured
-
         val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
 
         if (takePictureIntent.resolveActivity(context.packageManager) != null) {

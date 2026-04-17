@@ -109,7 +109,7 @@ class PantryFragment : Fragment() {
         viewModel.deleteItem(item)
     }
 
-    override fun onStart() {
+    override fun onStart() {2
         super.onStart()
         Log.d(TAG, "onStart() called")
     }
