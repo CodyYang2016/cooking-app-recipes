@@ -49,13 +49,26 @@ class PantryFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        Log.d(TAG, "onViewCreated() called — setting up RecyclerView")
 
         setupRecyclerView()
         setupAddButton()
         setupSeedButton()
         setupClearAllButton()
         observeData()
+
+        // Restore scroll position after rotation
+        savedInstanceState?.let {
+            val position = it.getInt("scroll_position", 0)
+            binding.recyclerView.scrollToPosition(position)
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        // Save scroll position before rotation
+        val position = (binding.recyclerView.layoutManager as LinearLayoutManager)
+            .findFirstVisibleItemPosition()
+        outState.putInt("scroll_position", position)
     }
 
     private fun setupRecyclerView() {
